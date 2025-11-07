@@ -1,47 +1,38 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getEmployeeAllocations, getEmployeeUtilization, getEmployeeProjectsWithDetails } from '../../services/database';
-import { FolderKanban, TrendingUp, Clock, Award, ChevronDown, ChevronUp, Users, DollarSign, Calendar, Target } from 'lucide-react';
+import { getEmployeeProjectsWithDetails } from '../../services/database';
 import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend
-} from 'recharts';
+  FolderKanban,
+  ChevronDown,
+  ChevronUp,
+  Users,
+  DollarSign,
+  Calendar,
+  Target,
+  Clock,
+  Search,
+  Filter
+} from 'lucide-react';
 
-const EmployeeDashboard = () => {
-  const { currentUser, userProfile } = useAuth();
-  const [allocations, setAllocations] = useState([]);
-  const [utilization, setUtilization] = useState(null);
+const EmployeeProjects = () => {
+  const { currentUser } = useAuth();
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [detailedProjects, setDetailedProjects] = useState([]);
   const [expandedProjectId, setExpandedProjectId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
-    loadDashboardData();
+    loadProjects();
   }, [currentUser]);
 
-  const loadDashboardData = async () => {
+  const loadProjects = async () => {
     try {
       setLoading(true);
-      const [allocationsData, utilizationData, projectsData] = await Promise.all([
-        getEmployeeAllocations(currentUser.uid),
-        getEmployeeUtilization(currentUser.uid),
-        getEmployeeProjectsWithDetails(currentUser.uid)
-      ]);
-
-      setAllocations(allocationsData);
-      setUtilization(utilizationData);
-      setDetailedProjects(projectsData);
+      const projectsData = await getEmployeeProjectsWithDetails(currentUser.uid);
+      setProjects(projectsData);
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      console.error('Error loading projects:', error);
     } finally {
       setLoading(false);
     }
@@ -66,216 +57,141 @@ const EmployeeDashboard = () => {
     }
   };
 
-  const getAllocationData = () => {
-    return allocations.map((alloc) => ({
-      name: alloc.projectName,
-      value: alloc.allocationPercentage
-    }));
-  };
+  const filteredProjects = projects.filter((project) => {
+    const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      project.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
-  const getUtilizationColor = () => {
-    const total = utilization?.totalAllocation || 0;
-    if (total > 100) return 'text-red-600';
-    if (total > 80) return 'text-yellow-600';
-    return 'text-green-600';
+  const projectStats = {
+    total: projects.length,
+    active: projects.filter(p => p.status === 'active').length,
+    completed: projects.filter(p => p.status === 'completed').length,
+    onHold: projects.filter(p => p.status === 'on-hold').length
   };
-
-  const getUtilizationStatus = () => {
-    const total = utilization?.totalAllocation || 0;
-    if (total > 100) return 'Over-allocated';
-    if (total > 80) return 'Highly utilized';
-    if (total > 50) return 'Well utilized';
-    return 'Under-utilized';
-  };
-
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading dashboard...</div>
+        <div className="text-gray-500">Loading projects...</div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">
-          Welcome, {userProfile?.fullName}!
-        </h1>
+        <h1 className="text-3xl font-bold text-gray-900">My Projects</h1>
         <p className="text-gray-600 mt-1">
-          Here's an overview of your current projects and utilization
+          View and manage all your project assignments
         </p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Active Projects</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {utilization?.projectCount || 0}
+              <p className="text-sm font-medium text-gray-600">Total Projects</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">
+                {projectStats.total}
               </p>
             </div>
             <div className="p-3 bg-blue-100 rounded-lg">
-              <FolderKanban className="text-blue-600" size={24} />
+              <FolderKanban className="text-blue-600" size={20} />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Allocation</p>
-              <p
-                className={`text-3xl font-bold mt-2 ${getUtilizationColor()}`}
-              >
-                {utilization?.totalAllocation?.toFixed(0) || 0}%
+              <p className="text-sm font-medium text-gray-600">Active</p>
+              <p className="text-2xl font-bold text-green-600 mt-1">
+                {projectStats.active}
               </p>
             </div>
             <div className="p-3 bg-green-100 rounded-lg">
-              <TrendingUp className="text-green-600" size={24} />
+              <Target className="text-green-600" size={20} />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">
-                Available Capacity
-              </p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {Math.max(utilization?.availableCapacity || 0, 0).toFixed(0)}%
+              <p className="text-sm font-medium text-gray-600">Completed</p>
+              <p className="text-2xl font-bold text-blue-600 mt-1">
+                {projectStats.completed}
               </p>
             </div>
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <Clock className="text-purple-600" size={24} />
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <FolderKanban className="text-blue-600" size={20} />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Status</p>
-              <p className={`text-lg font-bold mt-2 ${getUtilizationColor()}`}>
-                {getUtilizationStatus()}
+              <p className="text-sm font-medium text-gray-600">On Hold</p>
+              <p className="text-2xl font-bold text-yellow-600 mt-1">
+                {projectStats.onHold}
               </p>
             </div>
             <div className="p-3 bg-yellow-100 rounded-lg">
-              <Award className="text-yellow-600" size={24} />
+              <Clock className="text-yellow-600" size={20} />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Profile Summary */}
+      {/* Filters and Search */}
+      <div className="bg-white rounded-lg shadow p-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* Search */}
+          <div className="flex-1 relative">
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              size={20}
+            />
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center gap-2">
+            <Filter size={20} className="text-gray-400" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="on-hold">On Hold</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Projects List */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Profile Summary
+          Projects ({filteredProjects.length})
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <p className="text-sm text-gray-600">Department</p>
-            <p className="text-base font-semibold text-gray-900 mt-1">
-              {userProfile?.department || 'N/A'}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Designation</p>
-            <p className="text-base font-semibold text-gray-900 mt-1">
-              {userProfile?.designation || 'N/A'}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Joining Date</p>
-            <p className="text-base font-semibold text-gray-900 mt-1">
-              {userProfile?.joiningDate
-                ? new Date(userProfile.joiningDate).toLocaleDateString()
-                : 'N/A'}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Skills</p>
-            <p className="text-base font-semibold text-gray-900 mt-1">
-              {userProfile?.skills?.length || 0} skills
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Allocation Distribution */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Allocation Distribution
-          </h2>
-          {allocations.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={getAllocationData()}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name}: ${value}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {getAllocationData().map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-64 text-gray-500">
-              No project allocations yet
-            </div>
-          )}
-        </div>
-
-        {/* Project Allocations Bar */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Project Allocations
-          </h2>
-          {allocations.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={getAllocationData()}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis label={{ value: 'Allocation %', angle: -90, position: 'insideLeft' }} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="value" fill="#3b82f6" name="Allocation %" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-64 text-gray-500">
-              No project allocations yet
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* My Projects - Detailed View */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          My Projects
-        </h2>
-        {detailedProjects.length > 0 ? (
+        {filteredProjects.length > 0 ? (
           <div className="space-y-4">
-            {detailedProjects.map((project) => (
+            {filteredProjects.map((project) => (
               <div
                 key={project.id}
                 className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
@@ -520,56 +436,18 @@ const EmployeeDashboard = () => {
             ))}
           </div>
         ) : (
-          <p className="text-gray-500 text-center py-8">
-            You are not currently assigned to any projects
-          </p>
+          <div className="text-center py-12">
+            <FolderKanban className="mx-auto text-gray-400" size={48} />
+            <p className="text-gray-500 mt-4">
+              {searchTerm || statusFilter !== 'all'
+                ? 'No projects match your filters'
+                : 'You are not currently assigned to any projects'}
+            </p>
+          </div>
         )}
-      </div>
-
-      {/* Skills & Certifications */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            My Skills
-          </h2>
-          {userProfile?.skills && userProfile.skills.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {userProfile.skills.map((skill, index) => (
-                <span
-                  key={index}
-                  className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
-                >
-                  {skill}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500">No skills added yet</p>
-          )}
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Certifications
-          </h2>
-          {userProfile?.certifications && userProfile.certifications.length > 0 ? (
-            <div className="space-y-2">
-              {userProfile.certifications.map((cert, index) => (
-                <div
-                  key={index}
-                  className="p-3 bg-gray-50 rounded-lg border border-gray-200"
-                >
-                  <p className="text-sm font-medium text-gray-900">{cert}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500">No certifications added yet</p>
-          )}
-        </div>
       </div>
     </div>
   );
 };
 
-export default EmployeeDashboard;
+export default EmployeeProjects;

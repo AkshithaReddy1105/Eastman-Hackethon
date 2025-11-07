@@ -21,6 +21,7 @@ import ResourceManagement from './pages/manager/ResourceManagement';
 // Employee Pages
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
 import EmployeeProfile from './pages/employee/EmployeeProfile';
+import EmployeeProjects from './pages/employee/EmployeeProjects';
 
 function AppRoutes() {
   const { currentUser, userProfile } = useAuth();
@@ -178,12 +179,7 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['employee']}>
             <Layout>
-              <div className="text-center py-12">
-                <h2 className="text-2xl font-bold text-gray-900">My Projects</h2>
-                <p className="text-gray-600 mt-2">
-                  View your project assignments on the Dashboard
-                </p>
-              </div>
+              <EmployeeProjects />
             </Layout>
           </ProtectedRoute>
         }

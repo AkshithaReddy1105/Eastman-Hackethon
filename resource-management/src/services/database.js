@@ -270,6 +270,49 @@ export const getEmployeeAllocations = async (employeeId) => {
   }
 };
 
+export const getEmployeeProjectsWithDetails = async (employeeId) => {
+  try {
+    const projects = await getAllProjects();
+    const users = await getAllUsers();
+    const employeeProjects = [];
+
+    projects.forEach(project => {
+      if (project.allocations) {
+        const empAllocation = project.allocations.find(
+          alloc => alloc.employeeId === employeeId
+        );
+        if (empAllocation) {
+          // Get manager details
+          const manager = users.find(u => u.id === project.managerId);
+
+          // Get team members details
+          const teamMembers = project.allocations.map(alloc => {
+            const member = users.find(u => u.id === alloc.employeeId);
+            return {
+              ...alloc,
+              employeeName: member?.fullName || 'Unknown',
+              employeeEmail: member?.email || 'N/A'
+            };
+          });
+
+          employeeProjects.push({
+            ...project,
+            managerName: manager?.fullName || 'Unknown',
+            managerEmail: manager?.email || 'N/A',
+            teamMembers,
+            myAllocation: empAllocation
+          });
+        }
+      }
+    });
+
+    return employeeProjects;
+  } catch (error) {
+    console.error('Error getting employee projects with details:', error);
+    throw error;
+  }
+};
+
 // ==================== EXPENSE MANAGEMENT ====================
 
 export const addProjectExpense = async (projectId, expenseData) => {
